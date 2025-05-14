@@ -110,3 +110,10 @@
 .booking-item:nth-child(odd) {
   background-color: #dfe6e9;
 }
+
+.error {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+  margin-bottom: 0.5rem;
+}
