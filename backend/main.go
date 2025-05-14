@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"encoding/json"
+	"net/http"
 )
 
 var conferenceName = "The Conf"
@@ -25,6 +27,11 @@ type UserData struct {
 var waitgroup = sync.WaitGroup{}
 
 func main() {
+	http.HandleFunc("/api/conference", func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]string{"conferenceName": conferenceName})
+	})	
+
+	http.ListenAndServe(":8080", nil)
 
 	//Welcome message
 	greetUsers()
