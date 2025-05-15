@@ -2,144 +2,130 @@ package main
 
 import (
 	"fmt"
-	"strings"
+	"log"
+	"net/http"
 	"sync"
 	"time"
-	"encoding/json"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-var conferenceName = "The Conf"
+var (
+	conferenceName         = "The Conf"
+	conferenceTickets      = 50
+	remainingTickets  uint = 50
+	waitgroup         sync.WaitGroup
+	bookings          []Booking // In-memory storage for bookings
+)
 
-const conferenceTickets int = 50
-
-var remainingTickets uint = 50
-//bookings is a slice of strings
-var bookings = make([]UserData, 0)
-
-type UserData struct {
-	firstName string
-	lastName  string
-	email     string
-	userTickets uint
+type Booking struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	Tickets   uint   `json:"tickets"`
 }
-
-var waitgroup = sync.WaitGroup{}
 
 func main() {
-	http.HandleFunc("/api/conference", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]string{"conferenceName": conferenceName})
-	})	
+	// Create Gin router
+	r := gin.Default()
+	r.Use(CORSMiddleware())
 
-	http.ListenAndServe(":8080", nil)
+	// Routes
+	r.GET("/api/conference", getConferenceInfo)
+	r.GET("/api/bookings", getBookings)
+	r.POST("/api/book", bookTicketHandler)
 
-	//Welcome message
-	greetUsers()
+	// Start server
+	log.Println("Server running on :8080")
+	if err := r.Run(":8081"); err != nil {
+		log.Fatal(err)
+	}
+}
 
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		c.Next()
+	}
+}
 
-		firstName, lastName, email, userTickets := getUserInfo()
-		//validate user input
-		isValidName, isValidEmail, isValidTicketNumber := ValidateUserInput(firstName, lastName, email, userTickets)
+func getConferenceInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"conferenceName": conferenceName,
+		"totalTickets":   conferenceTickets,
+		"remaining":      remainingTickets,
+	})
+}
 
-		if isValidName && isValidEmail && isValidTicketNumber {
+func getBookings(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+}
 
-			bookTicket(userTickets, firstName, lastName, email)
+func bookTicketHandler(c *gin.Context) {
+	var booking Booking
+	if err := c.ShouldBindJSON(&booking); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
 
+	// Validate input
+	isValidName, isValidEmail, isValidTicketNumber := ValidateUserInput(
+		booking.FirstName,
+		booking.LastName,
+		booking.Email,
+		booking.Tickets,
+	)
+
+	if !isValidName || !isValidEmail || !isValidTicketNumber {
+		errorMessages := make(map[string]string)
+
+		if !isValidName {
+			errorMessages["name"] = "First name and last name must be at least 2 characters long"
+		}
+		if !isValidEmail {
+			errorMessages["email"] = "Email must contain @ symbol"
+		}
+		if !isValidTicketNumber {
+			errorMessages["tickets"] = "Ticket number must be between 1 and remaining tickets"
 		}
 
-		waitgroup.Add(1)
-		//send ticket
-		go sendTicket(userTickets, firstName, lastName, email)
-
-		//print first names
-		firstNames := getFirstNames()
-		fmt.Printf("Bookings list using first names: %v\n", firstNames)
-
-		if remainingTickets == 0 {
-			fmt.Println("Oops! All tickets are sold out!")
-		
-
-		} else {
-			if !isValidName {
-				fmt.Println("Invalid First name or Last name input. Please try again.")
-			}
-			if !isValidEmail {
-				fmt.Println("Invalid email input, email should contain @ symbol. Please try again.")
-			}
-			if !isValidTicketNumber {
-				fmt.Println("Invalid ticket number. Please try again.")
-			}
-
-		}
-	
-		waitgroup.Wait()
-}
-
-func greetUsers() {
-	fmt.Printf("Welcome to %v booking application!\n", conferenceName)
-	fmt.Printf("We have a total of %v tickets and %v are still available.\n", conferenceTickets, remainingTickets)
-	fmt.Println("Start here to grab your ticket.")
-
-}
-
-func getFirstNames() []string {
-	firstNames := []string{}
-	for _, booking := range bookings {
-		var names = strings.Fields(booking.firstName)
-		var firstName = names[0]
-		firstNames = append(firstNames, firstName)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": errorMessages,
+		})
+		return
 	}
-	return firstNames
+
+	// Save to in-memory storage
+	bookings = append(bookings, booking)
+
+	// Update remaining tickets
+	remainingTickets -= booking.Tickets
+
+	// Async send ticket
+	waitgroup.Add(1)
+	go sendTicket(booking.Tickets, booking.FirstName, booking.LastName, booking.Email)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Booking successful!",
+		"remaining": remainingTickets,
+	})
 }
 
-func getUserInfo() (string, string, string, uint) {
-	var firstName string
-	var lastName string
-	var email string
-	var userTickets uint
+func sendTicket(tickets uint, firstName, lastName, email string) {
+	defer waitgroup.Done()
 
-	fmt.Println("Hie, what is your First name?")
-	fmt.Scan(&firstName)
-	fmt.Println("What is your Last name?")
-	fmt.Scan(&lastName)
-	fmt.Println("What is your email?")
-	fmt.Scan(&email)
-	fmt.Println("How many tickets do you want to buy?")
-	fmt.Scan(&userTickets)
+	time.Sleep(10 * time.Second) // Simulate email sending delay
+	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
 
-	return firstName, lastName, email, userTickets
+	log.Printf("Sending ticket to %s: %s\n", email, ticket)
+	// In production, integrate with real email service here
 }
 
-func bookTicket(userTickets uint, firstName string, lastName string, email string) {
-	remainingTickets = remainingTickets - userTickets
 
-	//map for user data
-	var userData = UserData{
-		firstName:   firstName,
-		lastName:    lastName,
-		email:       email,
-		userTickets: userTickets,
-	}
-	
-	bookings = append(bookings, userData)
-	fmt.Printf("List of bookings: %v\n", bookings)
 
-	fmt.Printf("You have booked %v tickets for %v %v\n", userTickets, firstName, lastName)
-	fmt.Printf("A confirmation email will be sent to %v\n", email)
-	fmt.Println("Thank you for booking your tickets!")
-
-	fmt.Printf(" %v tickets are still available.\n", remainingTickets)
-
-	fmt.Printf("The first booking is from: %v\n", bookings[0])
-	// fmt.Printf("Slice type: %T and slice length: %v\n", bookings, len(bookings))
-}
-
-func sendTicket (userTickets uint, firstName string, lastName string, email string) {
-	time.Sleep(10 * time.Second)
-	var ticket = fmt.Sprintf("%v tickets for %v %v wil be sent to %v\n", userTickets, firstName, lastName, email)
-	fmt.Println("#########################")
-	fmt.Printf("Sending %v to  %v\n", ticket, email)
-	fmt.Println("#########################")
-	waitgroup.Done()
-	fmt.Println("Ticket sent successfully!")
-}
+// func contains(s, substr string) bool {
+// 	return len(s) >= len(substr) && len(substr) > 0 && len(s) > 0 && len(s) >= len(substr)
+// }

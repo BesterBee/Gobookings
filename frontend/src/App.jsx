@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 import './App.css';
 import BookingForm from './components/BookingForm';
 import RecentBookings from './components/RecentBookings';
@@ -32,12 +33,24 @@ function App() {
     return Object.keys(newErrors).length === 0; // Return true if no errors
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      alert('Form submitted successfully!');
-      setBookings([...bookings, formData]); // Add booking to the list
-      setFormData({ firstName: '', lastName: '', email: '', tickets: 1 }); // Reset form
+      try {
+        const response = await axios.post('http://localhost:8080/api/book', formData);
+        alert(response.data.message); // Show success message from the backend
+        setBookings([...bookings, formData]); // Add booking to the list
+        setFormData({ firstName: '', lastName: '', email: '', tickets: 1 }); // Reset form
+      } catch (error) {
+        if (error.response && error.response.data) {
+          // Handle validation errors from the backend
+          const backendErrors = error.response.data.details || {};
+          setErrors(backendErrors);
+          alert(error.response.data.error); // Show error message from the backend
+        } else {
+          alert('An unexpected error occurred. Please try again.');
+        }
+      }
     }
   };
 
