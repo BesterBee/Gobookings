@@ -100,7 +100,7 @@
 }
 
 .booking-item {
-  background-color: #ecf0f1;
+  background-color: #098aaa;
   padding: 1rem;
   margin-bottom: 0.5rem;
   border-radius: 4px;
@@ -108,7 +108,7 @@
 }
 
 .booking-item:nth-child(odd) {
-  background-color: #dfe6e9;
+  background-color: #09811a;
 }
 
 .error {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 import BookingForm from './components/BookingForm';
@@ -14,6 +14,35 @@ function App() {
 
   const [errors, setErrors] = useState({});
   const [bookings, setBookings] = useState([]);
+  const [conferenceInfo, setConferenceInfo] = useState({
+    conferenceName: '',
+    totalTickets: 0,
+    remaining: 0,
+  });
+
+  // Fetch conference info on component mount
+  useEffect(() => {
+    const fetchConferenceInfo = async () => {
+      try {
+        const response = await axios.get('http://localhost:8081/api/conference');
+        setConferenceInfo(response.data);
+      } catch (error) {
+        console.error('Error fetching conference info:', error);
+      }
+    };
+
+    const fetchBookings = async () => {
+      try {
+        const response = await axios.get('http://localhost:8081/api/bookings');
+        setBookings(response.data.bookings);
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+      }
+    };
+
+    fetchConferenceInfo();
+    fetchBookings();
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -37,10 +66,14 @@ function App() {
     e.preventDefault();
     if (validateForm()) {
       try {
-        const response = await axios.post('http://localhost:8080/api/book', formData);
+        const response = await axios.post('http://localhost:8081/api/book', formData);
         alert(response.data.message); // Show success message from the backend
         setBookings([...bookings, formData]); // Add booking to the list
         setFormData({ firstName: '', lastName: '', email: '', tickets: 1 }); // Reset form
+        setConferenceInfo((prev) => ({
+          ...prev,
+          remaining: response.data.remaining,
+        })); // Update remaining tickets
       } catch (error) {
         if (error.response && error.response.data) {
           // Handle validation errors from the backend
@@ -61,8 +94,10 @@ function App() {
 
   return (
     <div>
-      <h1 className="header">Book Tickets for The Conf</h1>
-      <p className="remaining-tickets">Remaining tickets: 50</p>
+      <h1 className="header">Book Tickets for {conferenceInfo.conferenceName}</h1>
+      <p className="remaining-tickets">
+        Total Tickets: {conferenceInfo.totalTickets} | Remaining Tickets: {conferenceInfo.remaining}
+      </p>
       <BookingForm
         formData={formData}
         errors={errors}
