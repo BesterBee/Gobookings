@@ -35,10 +35,11 @@ func main() {
 	r.GET("/api/bookings", getBookings)
 	r.POST("/api/book", bookTicketHandler)
 
-	// Start server
+
 	log.Println("Server running on :8080")
 	if err := r.Run(":8081"); err != nil {
 		log.Fatal(err)
+
 	}
 }
 
@@ -47,6 +48,10 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
 		c.Next()
 	}
 }
@@ -121,11 +126,5 @@ func sendTicket(tickets uint, firstName, lastName, email string) {
 	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
-	// In production, integrate with real email service here
 }
 
-
-
-// func contains(s, substr string) bool {
-// 	return len(s) >= len(substr) && len(substr) > 0 && len(s) > 0 && len(s) >= len(substr)
-// }
