@@ -35,7 +35,6 @@ func main() {
 	r.GET("/api/bookings", getBookings)
 	r.POST("/api/book", bookTicketHandler)
 
-
 	log.Println("Server running on :8080")
 	if err := r.Run(":8081"); err != nil {
 		log.Fatal(err)
@@ -127,4 +126,3 @@ func sendTicket(tickets uint, firstName, lastName, email string) {
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
 }
-

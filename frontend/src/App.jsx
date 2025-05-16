@@ -34,7 +34,7 @@ function App() {
     const fetchBookings = async () => {
       try {
         const response = await axios.get('http://localhost:8081/api/bookings');
-        setBookings(response.data.bookings);
+        setBookings(Array.isArray(response.data.bookings) ? response.data.bookings : []);
       } catch (error) {
         console.error('Error fetching bookings:', error);
       }
