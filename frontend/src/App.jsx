@@ -9,7 +9,7 @@ function App() {
     firstName: '',
     lastName: '',
     email: '',
-    tickets: 1,
+    tickets: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -55,7 +55,7 @@ function App() {
     if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'A valid Email is required';
     }
-    if (formData.tickets < 1) {
+    if (formData.tickets <= 0) {
       newErrors.tickets = 'At least 1 ticket must be booked';
     }
     setErrors(newErrors);
@@ -69,7 +69,7 @@ function App() {
         const response = await axios.post('http://localhost:8081/api/book', formData);
         alert(response.data.message); // Show success message from the backend
         setBookings([...bookings, formData]); // Add booking to the list
-        setFormData({ firstName: '', lastName: '', email: '', tickets: 1 }); // Reset form
+        setFormData({ firstName: '', lastName: '', email: '', tickets: '' }); // Reset form
         setConferenceInfo((prev) => ({
           ...prev,
           remaining: response.data.remaining,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,9 +12,9 @@ import (
 )
 
 var (
-	conferenceName         = "The Conf"
-	conferenceTickets      = 50
-	remainingTickets  uint = 50
+	conferenceName        = "Endaweni"
+	conferenceTickets     = 50
+	remainingTickets  int = 50
 	waitgroup         sync.WaitGroup
 	bookings          []Booking // In-memory storage for bookings
 )
@@ -22,7 +23,7 @@ type Booking struct {
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Email     string `json:"email"`
-	Tickets   uint   `json:"tickets"`
+	Tickets   string `json:"tickets"`
 }
 
 func main() {
@@ -74,12 +75,17 @@ func bookTicketHandler(c *gin.Context) {
 		return
 	}
 
+	ticketCount, err := strconv.Atoi(booking.Tickets)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid number of tickets"})
+		return
+	}
 	// Validate input
 	isValidName, isValidEmail, isValidTicketNumber := ValidateUserInput(
 		booking.FirstName,
 		booking.LastName,
 		booking.Email,
-		booking.Tickets,
+		ticketCount,
 	)
 
 	if !isValidName || !isValidEmail || !isValidTicketNumber {
@@ -106,11 +112,11 @@ func bookTicketHandler(c *gin.Context) {
 	bookings = append(bookings, booking)
 
 	// Update remaining tickets
-	remainingTickets -= booking.Tickets
+	remainingTickets -= ticketCount
 
 	// Async send ticket
 	waitgroup.Add(1)
-	go sendTicket(booking.Tickets, booking.FirstName, booking.LastName, booking.Email)
+	go sendTicket(ticketCount, booking.FirstName, booking.LastName, booking.Email)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":   "Booking successful!",
@@ -118,10 +124,10 @@ func bookTicketHandler(c *gin.Context) {
 	})
 }
 
-func sendTicket(tickets uint, firstName, lastName, email string) {
+func sendTicket(tickets int, firstName, lastName, email string) {
 	defer waitgroup.Done()
 
-	time.Sleep(10 * time.Second) // Simulate email sending delay
+	time.Sleep(10 * time.Second) 
 	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
