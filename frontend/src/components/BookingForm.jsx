@@ -9,7 +9,6 @@ function BookingForm({ formData, errors, handleChange, handleSubmit }) {
         value={formData.firstName}
         onChange={handleChange}
         error={errors.firstName}
-        placeholder="First Name"
       />
       <FormInput
         label="Last Name"
@@ -17,7 +16,6 @@ function BookingForm({ formData, errors, handleChange, handleSubmit }) {
         value={formData.lastName}
         onChange={handleChange}
         error={errors.lastName}
-        placeholder="Last Name"
       />
       <FormInput
         label="Email"
@@ -25,7 +23,6 @@ function BookingForm({ formData, errors, handleChange, handleSubmit }) {
         value={formData.email}
         onChange={handleChange}
         error={errors.email}
-        placeholder="Email"
       />
       <FormInput
         label="Number of Tickets"
@@ -34,7 +31,6 @@ function BookingForm({ formData, errors, handleChange, handleSubmit }) {
         value={formData.tickets}
         onChange={handleChange}
         error={errors.tickets}
-        placeholder="Number of Tickets"
       />
       <button className="form-button" type="submit">Book Now</button>
     </form>

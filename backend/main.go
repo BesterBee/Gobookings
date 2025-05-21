@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 var (
@@ -20,6 +22,8 @@ var (
 )
 
 type Booking struct {
+	gorm.Model
+	Id        int
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Email     string `json:"email"`
@@ -27,6 +31,31 @@ type Booking struct {
 }
 
 func main() {
+	// Initialize the database
+	db, err := gorm.Open(mysql.Open("ticket_user:password123@tcp(localhost:3306)/tickets_db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to the database:", err)
+	}
+
+	fmt.Println("Connected to the database")
+
+	// Migrate the schema
+	db.AutoMigrate(&Booking{})
+
+	// Create a new booking
+	db.Create(&Booking{
+		FirstName: "John",
+		LastName:  "Doe",
+		Email:     "john.doe@example.com",
+		Tickets:   "10",
+	})
+
+	var booking Booking
+	db.First(&booking)
+	fmt.Println(booking)
+	db.First(&booking, "first_name = ?", "John")
+	fmt.Println(booking)
+
 	// Create Gin router
 	r := gin.Default()
 	r.Use(CORSMiddleware())
@@ -127,7 +156,7 @@ func bookTicketHandler(c *gin.Context) {
 func sendTicket(tickets int, firstName, lastName, email string) {
 	defer waitgroup.Done()
 
-	time.Sleep(10 * time.Second) 
+	time.Sleep(10 * time.Second)
 	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
