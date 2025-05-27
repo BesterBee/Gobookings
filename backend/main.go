@@ -22,16 +22,15 @@ var (
 
 type Booking struct {
 	gorm.Model
-	Id        int
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Email     string `json:"email"`
-	Tickets   int    `json:"tickets"`
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	Email        string `json:"email"`
+	Tickets      int    `json:"tickets"`
+	ConferenceId uint   `json:"conferenceId"`
 }
 
 type Conference struct {
 	gorm.Model
-	Id               int
 	Title            string `json:"title"`
 	Description      string `json:"description"`
 	StartDate        string `json:"startDate"`
@@ -53,8 +52,8 @@ func main() {
 	// Set up routes
 	setupRoutes(r)
 
-	log.Println("Server running on :8081")
-	if err := r.Run(":8081"); err != nil {
+	log.Println("Server running on :8085")
+	if err := r.Run(":8085"); err != nil {
 		log.Fatal(err)
 
 	}
@@ -103,9 +102,13 @@ func setupInitialConference() {
 }
 
 func setupRoutes(r *gin.Engine) {
+	r.GET("/api/conferences", getAllConferences)
 	r.GET("/api/conference", getConferenceInfo)
 	r.GET("/api/bookings", getBookings)
 	r.POST("/api/book", bookTicketHandler)
+	r.GET("/api/conference/:id/bookings", getConferenceBookings)
+	r.POST("/api/conferences", createConference)
+	r.GET("/api/conference/:id", getConferenceInfoByID)
 }
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -121,6 +124,33 @@ func CORSMiddleware() gin.HandlerFunc {
 	}
 }
 
+func createConference(c *gin.Context) {
+	var conference Conference
+	if err := c.ShouldBindJSON(&conference); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if conference.Title == "" || conference.TotalTickets <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title and TotalTickets are required"})
+		return
+	}
+	conference.RemainingTickets = conference.TotalTickets
+	if err := db.Create(&conference).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conference"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conference": conference})
+}
+
+func getAllConferences(c *gin.Context) {
+	var conferences []Conference
+	if err := db.Find(&conferences).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conferences"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
+}
+
 func getConferenceInfo(c *gin.Context) {
 	var conference Conference
 	if err := db.Where("title = ?", conferenceName).First(&conference).Error; err != nil {
@@ -132,6 +162,16 @@ func getConferenceInfo(c *gin.Context) {
 	})
 }
 
+func getConferenceInfoByID(c *gin.Context) {
+	id := c.Param("id")
+	var conference Conference
+	if err := db.First(&conference, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conference not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conference": conference})
+}
+
 func getBookings(c *gin.Context) {
 	var bookings []Booking
 	if err := db.Find(&bookings).Error; err != nil {
@@ -139,6 +179,18 @@ func getBookings(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"These are the bookings": bookings})
+}
+
+func getConferenceBookings(c *gin.Context) {
+	var bookings []Booking
+	conferenceID := c.Param("id")
+
+	if err := db.Where("conference_id = ?", conferenceID).Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the conference"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
 }
 
 func bookTicketHandler(c *gin.Context) {
@@ -153,9 +205,9 @@ func bookTicketHandler(c *gin.Context) {
 		return
 	}
 
-	// Check if there are enough tickets available
+	// Find the conference by ID from the booking
 	var conference Conference
-	if err := db.Where("title = ?", conferenceName).First(&conference).Error; err != nil {
+	if err := db.First(&conference, booking.ConferenceId).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Conference not found"})
 		return
 	}
