@@ -25,7 +25,12 @@ function App() {
     const fetchConferenceInfo = async () => {
       try {
         const response = await axios.get('http://localhost:8081/api/conference');
-        setConferenceInfo(response.data);
+        const conf = response.data.Conference;
+        setConferenceInfo({
+          conferenceName: conf.title || '',
+          totalTickets: conf.totalTickets || '',
+          remaining: conf.remainingTickets || '',
+        });
       } catch (error) {
         console.error('Error fetching conference info:', error);
       }
@@ -34,7 +39,7 @@ function App() {
     const fetchBookings = async () => {
       try {
         const response = await axios.get('http://localhost:8081/api/bookings');
-        setBookings(Array.isArray(response.data.bookings) ? response.data.bookings : []);
+        setBookings(Array.isArray(response.data["These are the bookings"]) ? response.data["These are the bookings"] : []);
       } catch (error) {
         console.error('Error fetching bookings:', error);
       }
@@ -66,14 +71,18 @@ function App() {
     e.preventDefault();
     if (validateForm()) {
       try {
-        const response = await axios.post('http://localhost:8081/api/book', formData);
+        const payload = { ...formData, tickets: Number(formData.tickets) };
+        const response = await axios.post('http://localhost:8081/api/book', payload);
         alert(response.data.message); // Show success message from the backend
-        setBookings([...bookings, formData]); // Add booking to the list
+        setBookings([...bookings, payload]); // Add booking to the list
         setFormData({ firstName: '', lastName: '', email: '', tickets: '' }); // Reset form
         setConferenceInfo((prev) => ({
           ...prev,
           remaining: response.data.remaining,
         })); // Update remaining tickets
+        // Fetch latest bookings from backend after successful booking
+        const bookingsRes = await axios.get('http://localhost:8081/api/bookings');
+        setBookings(Array.isArray(bookingsRes.data["These are the bookings"]) ? bookingsRes.data["These are the bookings"] : []);
       } catch (error) {
         if (error.response && error.response.data) {
           // Handle validation errors from the backend
