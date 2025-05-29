@@ -25,12 +25,12 @@ function BookingForm({ formData, errors, handleChange, handleSubmit }) {
         error={errors.email}
       />
       <FormInput
-        label="Number of Tickets"
-        name="tickets"
+        label="Number of Seats"
+        name="seats"
         type="number"
-        value={formData.tickets}
+        value={formData.seats}
         onChange={handleChange}
-        error={errors.tickets}
+        error={errors.seats}
       />
       <button className="form-button" type="submit">Book Now</button>
     </form>

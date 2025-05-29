@@ -41,6 +41,13 @@
   color: #888;
 }
 
+.choice-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
 /* Header styling */
 .header {
   font-size: 2rem;

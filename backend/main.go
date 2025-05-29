@@ -15,18 +15,30 @@ import (
 )
 
 var (
-	conferenceName = "Endaweni"
-	waitgroup      sync.WaitGroup
-	db             *gorm.DB
+	waitgroup sync.WaitGroup
+	db        *gorm.DB
+	busName   = "Bee Tours"
 )
 
-type Booking struct {
+type Bus struct {
 	gorm.Model
-	FirstName    string `json:"firstName"`
-	LastName     string `json:"lastName"`
-	Email        string `json:"email"`
-	Tickets      int    `json:"tickets"`
-	ConferenceId uint   `json:"conferenceId"`
+	Name           string `json:"name"`
+	Origin         string `json:"origin"`
+	Destination    string `json:"destination"`
+	Date           string `json:"tripDate"`
+	DepartureTime  string `json:"departureTime"`
+	ArrivalTime    string `json:"arrivalTime"`
+	TotalSeats     int    `json:"totalSeats"`
+	RemainingSeats int    `json:"remainingSeats"`
+}
+
+type BusBooking struct {
+	gorm.Model
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Email     string `json:"email"`
+	Seats     int    `json:"seats"`
+	BusID     uint   `json:"busId"`
 }
 
 type Conference struct {
@@ -38,6 +50,15 @@ type Conference struct {
 	Location         string `json:"location"`
 	TotalTickets     int    `json:"totalTickets"`
 	RemainingTickets int    `json:"remainingTickets"`
+}
+
+type ConferenceBooking struct {
+	gorm.Model
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	Email        string `json:"email"`
+	Tickets      int    `json:"tickets"`
+	ConferenceID uint   `json:"conferenceId"`
 }
 
 func main() {
@@ -70,131 +91,56 @@ func initDB() {
 	fmt.Println("Connected to the database")
 
 	// Migrate the schema
-	err = db.AutoMigrate(&Booking{}, &Conference{})
+	err = db.AutoMigrate(&BusBooking{}, &Bus{}, &Conference{}, &ConferenceBooking{})
 	if err != nil {
 		log.Fatal("Failed to migrate the database:", err)
 	}
 	fmt.Println("Database migrated")
 
-	setupInitialConference()
+	setupInitialBus()
 }
 
-func setupInitialConference() {
-	//check if the conference already exists
-	var conference Conference
-	result := db.Where("title = ?", conferenceName).First(&conference)
+func setupInitialBus() {
+	//check if the bus already exists
+	var bus Bus
+	result := db.Where("name = ?", busName).First(&bus)
 	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		// Create a new conference
-		conference = Conference{
-			Title:            conferenceName,
-			Description:      "A conference about Go programming",
-			StartDate:        "2023-10-01",
-			EndDate:          "2023-10-02",
-			Location:         "Online",
-			TotalTickets:     50,
-			RemainingTickets: 50,
+		// Create a new bus
+		bus = Bus{
+			Name:           busName,
+			Origin:         "City A",
+			Destination:    "City B",
+			DepartureTime:  "2023-10-01 10:00:00",
+			ArrivalTime:    "2023-10-01 11:00:00",
+			TotalSeats:     50,
+			RemainingSeats: 50,
 		}
-		if err := db.Create(&conference).Error; err != nil {
-			log.Fatal("Failed to create conference:", err)
+		if err := db.Create(&bus).Error; err != nil {
+			log.Fatal("Failed to create bus:", err)
 		}
-		fmt.Println("A new conference has been created")
+		fmt.Println("A new bus has been created")
 	}
 }
 
 func setupRoutes(r *gin.Engine) {
+	// Bus endpoints
+	r.GET("/api/bus", getAllBuses)
+	r.POST("/api/bus", createBus)
+	r.GET("/api/bus/:id", getBusInfoByID)
+	r.GET("/api/bus/:id/bookings", getBusBookings)
+	r.POST("/api/bus/:id/book", bookBusTicketHandler)
+
+	// Conference endpoints
 	r.GET("/api/conferences", getAllConferences)
-	r.GET("/api/conference", getConferenceInfo)
-	r.GET("/api/bookings", getBookings)
-	r.POST("/api/book", bookTicketHandler)
-	r.GET("/api/conference/:id/bookings", getConferenceBookings)
 	r.POST("/api/conferences", createConference)
 	r.GET("/api/conference/:id", getConferenceInfoByID)
+	r.GET("/api/conference/:id/bookings", getConferenceBookings)
+	r.POST("/api/conference/:id/book", bookConferenceTicketHandler)
 }
 
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	}
-}
-
-func createConference(c *gin.Context) {
-	var conference Conference
-	if err := c.ShouldBindJSON(&conference); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-		return
-	}
-	if conference.Title == "" || conference.TotalTickets <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Title and TotalTickets are required"})
-		return
-	}
-	conference.RemainingTickets = conference.TotalTickets
-	if err := db.Create(&conference).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conference"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"conference": conference})
-}
-
-func getAllConferences(c *gin.Context) {
-	var conferences []Conference
-	if err := db.Find(&conferences).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conferences"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
-}
-
-func getConferenceInfo(c *gin.Context) {
-	var conference Conference
-	if err := db.Where("title = ?", conferenceName).First(&conference).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Conference not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"Conference": conference,
-	})
-}
-
-func getConferenceInfoByID(c *gin.Context) {
-	id := c.Param("id")
-	var conference Conference
-	if err := db.First(&conference, id).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Conference not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"conference": conference})
-}
-
-func getBookings(c *gin.Context) {
-	var bookings []Booking
-	if err := db.Find(&bookings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"These are the bookings": bookings})
-}
-
-func getConferenceBookings(c *gin.Context) {
-	var bookings []Booking
-	conferenceID := c.Param("id")
-
-	if err := db.Where("conference_id = ?", conferenceID).Find(&bookings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the conference"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
-}
-
-func bookTicketHandler(c *gin.Context) {
-	var booking Booking
+// Handler to book a conference ticket
+func bookConferenceTicketHandler(c *gin.Context) {
+	var booking ConferenceBooking
 	if err := c.ShouldBindJSON(&booking); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
@@ -205,9 +151,10 @@ func bookTicketHandler(c *gin.Context) {
 		return
 	}
 
-	// Find the conference by ID from the booking
+	// Find the conference by ID from the URL parameter
+	conferenceID := c.Param("id")
 	var conference Conference
-	if err := db.First(&conference, booking.ConferenceId).Error; err != nil {
+	if err := db.First(&conference, conferenceID).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Conference not found"})
 		return
 	}
@@ -218,7 +165,10 @@ func bookTicketHandler(c *gin.Context) {
 		return
 	}
 
-	// start a transaction
+	// Set the ConferenceID in the booking
+	booking.ConferenceID = conference.ID
+
+	// Start a transaction
 	tx := db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -226,8 +176,8 @@ func bookTicketHandler(c *gin.Context) {
 		}
 	}()
 
-	// Update the conference tickets
-	if err := tx.Model(&conference).Where("title = ?", conferenceName).Update("remaining_tickets",
+	// Update the conference remaining tickets
+	if err := tx.Model(&conference).Where("id = ?", conference.ID).Update("remaining_tickets",
 		gorm.Expr("remaining_tickets - ?", booking.Tickets)).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update conference tickets"})
@@ -256,6 +206,172 @@ func bookTicketHandler(c *gin.Context) {
 	})
 }
 
+// Handler to get all conferences
+func getAllConferences(c *gin.Context) {
+	var conferences []Conference
+	if err := db.Find(&conferences).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conferences"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
+}
+
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	}
+}
+
+// Handler to create a new conference
+func createConference(c *gin.Context) {
+	var conference Conference
+	if err := c.ShouldBindJSON(&conference); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if conference.Title == "" || conference.TotalTickets <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title and TotalTickets are required"})
+		return
+	}
+	conference.RemainingTickets = conference.TotalTickets
+	if err := db.Create(&conference).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create conference"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conference": conference})
+}
+
+func createBus(c *gin.Context) {
+	var bus Bus
+	if err := c.ShouldBindJSON(&bus); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	if bus.Name == "" || bus.TotalSeats <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name and TotalSeats are required"})
+		return
+	}
+	bus.RemainingSeats = bus.TotalSeats
+	if err := db.Create(&bus).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create bus"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"bus": bus})
+}
+
+func getAllBuses(c *gin.Context) {
+	var conferences []Bus
+	if err := db.Find(&conferences).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conferences"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
+}
+
+// Handler to get conference info by ID
+func getConferenceInfoByID(c *gin.Context) {
+	id := c.Param("id")
+	var conference Conference
+	if err := db.First(&conference, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conference not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"conference": conference})
+}
+
+func getBusInfoByID(c *gin.Context) {
+	id := c.Param("id")
+	var bus Bus
+	if err := db.First(&bus, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bus not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"bus": bus})
+}
+
+
+func getBusBookings(c *gin.Context) {
+	var bookings []BusBooking
+	busID := c.Param("id")
+
+	if err := db.Where("bus_id = ?", busID).Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the bus"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+}
+
+func bookBusTicketHandler(c *gin.Context) {
+	var booking BusBooking
+	if err := c.ShouldBindJSON(&booking); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	if !ValidateUserInput(booking.FirstName, booking.LastName, booking.Email, booking.Seats) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		return
+	}
+
+	// Find the bus by ID from the booking
+	var bus Bus
+	if err := db.First(&bus, booking.BusID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bus not found"})
+		return
+	}
+
+	// Check if there are enough seats available
+	if booking.Seats > bus.RemainingSeats {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough seats left", "remaining": bus.RemainingSeats})
+		return
+	}
+
+	// start a transaction
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Update the bus remaining seats
+	if err := tx.Model(&bus).Where("id = ?", bus.ID).Update("remaining_seats",
+		gorm.Expr("remaining_seats - ?", booking.Seats)).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bus seats"})
+		return
+	}
+	// Create the booking
+	if err := tx.Create(&booking).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
+		return
+	}
+
+	// Commit the transaction
+	if err := tx.Commit().Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
+		return
+	}
+
+	// Async send ticket
+	waitgroup.Add(1)
+	go sendTicket(booking.Seats, booking.FirstName, booking.LastName, booking.Email)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":   "Booking successful!",
+		"remaining": bus.RemainingSeats - booking.Seats,
+	})
+}
+
 func sendTicket(tickets int, firstName, lastName, email string) {
 	defer waitgroup.Done()
 
@@ -263,6 +379,19 @@ func sendTicket(tickets int, firstName, lastName, email string) {
 	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
+}
+
+// Handler to get all bookings for a specific conference
+func getConferenceBookings(c *gin.Context) {
+	var bookings []ConferenceBooking
+	conferenceID := c.Param("id")
+
+	if err := db.Where("conference_id = ?", conferenceID).Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the conference"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
 }
 
 func ValidateUserInput(firstName, lastName, email string, tickets int) bool {
