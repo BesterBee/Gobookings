@@ -62,8 +62,8 @@ type ConferenceBooking struct {
 }
 
 func main() {
-	// Initialize the database
-	initDB()
+
+	initDB()               //intitialize the database connection
 	defer waitgroup.Wait() // Wait for all goroutines to finish
 
 	// Create Gin router
@@ -80,6 +80,7 @@ func main() {
 	}
 }
 
+// function to initialize the database connection MySQL database
 func initDB() {
 	var err error
 
@@ -100,8 +101,8 @@ func initDB() {
 	setupInitialBus()
 }
 
+// Function to set up the initial bus if it doesn't exist
 func setupInitialBus() {
-	//check if the bus already exists
 	var bus Bus
 	result := db.Where("name = ?", busName).First(&bus)
 	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -122,6 +123,7 @@ func setupInitialBus() {
 	}
 }
 
+// Function to set up the routes for the API endpoints that handle bus and conference bookings from the frontend
 func setupRoutes(r *gin.Engine) {
 	// Bus endpoints
 	r.GET("/api/bus", getAllBuses)
@@ -136,6 +138,20 @@ func setupRoutes(r *gin.Engine) {
 	r.GET("/api/conference/:id", getConferenceInfoByID)
 	r.GET("/api/conference/:id/bookings", getConferenceBookings)
 	r.POST("/api/conference/:id/book", bookConferenceTicketHandler)
+}
+
+// Function to handle CORS requests
+func CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	}
 }
 
 // Handler to book a conference ticket
@@ -216,19 +232,6 @@ func getAllConferences(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
 }
 
-func CORSMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-		c.Next()
-	}
-}
-
 // Handler to create a new conference
 func createConference(c *gin.Context) {
 	var conference Conference
@@ -248,6 +251,7 @@ func createConference(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"conference": conference})
 }
 
+// Function to create a new bus
 func createBus(c *gin.Context) {
 	var bus Bus
 	if err := c.ShouldBindJSON(&bus); err != nil {
@@ -266,13 +270,14 @@ func createBus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"bus": bus})
 }
 
+// Handler to get all buses
 func getAllBuses(c *gin.Context) {
-	var conferences []Bus
-	if err := db.Find(&conferences).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conferences"})
+	var buses []Bus
+	if err := db.Find(&buses).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch buses"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"conferences": conferences})
+	c.JSON(http.StatusOK, gin.H{"buses": buses}) // <-- use "buses" not "BUSES"
 }
 
 // Handler to get conference info by ID
@@ -286,6 +291,20 @@ func getConferenceInfoByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"conference": conference})
 }
 
+// Handler to get all bookings for a specific conference
+func getConferenceBookings(c *gin.Context) {
+	var bookings []ConferenceBooking
+	conferenceID := c.Param("id")
+
+	if err := db.Where("conference_id = ?", conferenceID).Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the conference"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+}
+
+// GetBusInfoByID returns a bus by its ID
 func getBusInfoByID(c *gin.Context) {
 	id := c.Param("id")
 	var bus Bus
@@ -296,7 +315,7 @@ func getBusInfoByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"bus": bus})
 }
 
-
+// Handler to get bookings for a specific bus
 func getBusBookings(c *gin.Context) {
 	var bookings []BusBooking
 	busID := c.Param("id")
@@ -309,6 +328,7 @@ func getBusBookings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
 }
 
+// Handler to book a bus ticket
 func bookBusTicketHandler(c *gin.Context) {
 	var booking BusBooking
 	if err := c.ShouldBindJSON(&booking); err != nil {
@@ -372,6 +392,7 @@ func bookBusTicketHandler(c *gin.Context) {
 	})
 }
 
+// Function to send a ticket  asynchronously
 func sendTicket(tickets int, firstName, lastName, email string) {
 	defer waitgroup.Done()
 
@@ -381,19 +402,7 @@ func sendTicket(tickets int, firstName, lastName, email string) {
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
 }
 
-// Handler to get all bookings for a specific conference
-func getConferenceBookings(c *gin.Context) {
-	var bookings []ConferenceBooking
-	conferenceID := c.Param("id")
-
-	if err := db.Where("conference_id = ?", conferenceID).Find(&bookings).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings for the conference"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
-}
-
+// ValidateUserInput checks if the user input is valid
 func ValidateUserInput(firstName, lastName, email string, tickets int) bool {
 	isValidName := len(firstName) > 1 && len(lastName) > 1
 	isValidEmail := len(email) > 3 && strings.Contains(email, "@")

@@ -38,7 +38,7 @@ function App() {
   useEffect(() => {
     if (mode === 'bus') {
       axios.get('http://localhost:8085/api/bus').then(res => {
-        setBuses(res.data.conferences || []);
+        setBuses(res.data.buses || []);
         setSelectedBus(null);
       });
     } else {
@@ -101,7 +101,7 @@ function App() {
     try {
       if (mode === 'bus') {
         const payload = { ...formData, seats: Number(formData.seats), busId: selectedBus.ID };
-        const response = await axios.post('http://localhost:8085/api/book', payload);
+        const response = await axios.post('http://localhost:8085/api/bus/${selectedBus.ID}/book', payload);
         alert(response.data.message);
         setFormData({ firstName: '', lastName: '', email: '', seats: '', tickets: '' });
         setBusInfo(prev => ({ ...prev, remaining: response.data.remaining }));
