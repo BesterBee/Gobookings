@@ -1,0 +1,54 @@
+.create-bus-btn {
+  background: #1051a5;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.2s;
+}
+.create-bus-btn:hover {
+  background: #0d3c7b;
+}
+
+.header {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #11b3ff;
+}
+
+.remaining-tickets {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+  background: #e6f0ff;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.recent-bookings-header {
+  margin-top: 2rem;
+  font-size: 1.3rem;
+  color: #1051a5;
+}
+
+button[style*="Back to Buses"] {
+  background: none;
+  border: none;
+  color: #1051a5;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: text-decoration 0.2s;
+}
+button[style*="Back to Buses"]:hover {
+  text-decoration: underline;
+}
+.bus-panel-header {
+  margin-top: 2rem;
+  color: #1051a5;
+  
+}

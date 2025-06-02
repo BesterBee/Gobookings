@@ -138,6 +138,11 @@ func setupRoutes(r *gin.Engine) {
 	r.GET("/api/conference/:id", getConferenceInfoByID)
 	r.GET("/api/conference/:id/bookings", getConferenceBookings)
 	r.POST("/api/conference/:id/book", bookConferenceTicketHandler)
+
+	// Dashboard endpoint
+	r.GET("/api/dashboard_summary", getDashboardSummary)
+	r.GET("/api/bus_bookings", getAllBusBookings)
+	r.GET("/api/conference_bookings", getAllConferenceBookings)
 }
 
 // Function to handle CORS requests
@@ -392,6 +397,26 @@ func bookBusTicketHandler(c *gin.Context) {
 	})
 }
 
+// Handler to get all bus bookings
+func getAllBusBookings(c *gin.Context) {
+	var bookings []BusBooking
+	if err := db.Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bus bookings"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+}
+
+// Handler to get all conference bookings
+func getAllConferenceBookings(c *gin.Context) {
+	var bookings []ConferenceBooking
+	if err := db.Find(&bookings).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conference bookings"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+}
+
 // Function to send a ticket  asynchronously
 func sendTicket(tickets int, firstName, lastName, email string) {
 	defer waitgroup.Done()
@@ -409,4 +434,30 @@ func ValidateUserInput(firstName, lastName, email string, tickets int) bool {
 	isValidTicketNumber := tickets > 0
 
 	return isValidName && isValidEmail && isValidTicketNumber
+}
+
+// Handler to get the dashboard summary
+func getDashboardSummary(c *gin.Context) {
+	var busCount, conferenceCount, busBookingCount, conferenceBookingCount int64
+	var totalBusSeats, totalConferenceTickets, totalBusSeatsBooked, totalConferenceTicketsBooked int64
+
+	db.Model(&Bus{}).Count(&busCount)
+	db.Model(&Conference{}).Count(&conferenceCount)
+	db.Model(&BusBooking{}).Count(&busBookingCount)
+	db.Model(&ConferenceBooking{}).Count(&conferenceBookingCount)
+	db.Model(&Bus{}).Select("SUM(total_seats)").Scan(&totalBusSeats)
+	db.Model(&Conference{}).Select("SUM(total_tickets)").Scan(&totalConferenceTickets)
+	db.Model(&BusBooking{}).Select("SUM(seats)").Scan(&totalBusSeatsBooked)
+	db.Model(&ConferenceBooking{}).Select("SUM(tickets)").Scan(&totalConferenceTicketsBooked)
+
+	c.JSON(200, gin.H{
+		"busCount":                     busCount,
+		"conferenceCount":              conferenceCount,
+		"busBookingCount":              busBookingCount,
+		"conferenceBookingCount":       conferenceBookingCount,
+		"totalBusSeats":                totalBusSeats,
+		"totalConferenceTickets":       totalConferenceTickets,
+		"totalBusSeatsBooked":          totalBusSeatsBooked,
+		"totalConferenceTicketsBooked": totalConferenceTicketsBooked,
+	})
 }
