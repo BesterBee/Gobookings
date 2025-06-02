@@ -63,7 +63,7 @@ type ConferenceBooking struct {
 
 func main() {
 
-	initDB()               //intitialize the database connection
+	initDB()
 	defer waitgroup.Wait() // Wait for all goroutines to finish
 
 	// Create Gin router
@@ -277,7 +277,7 @@ func getAllBuses(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch buses"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"buses": buses}) // <-- use "buses" not "BUSES"
+	c.JSON(http.StatusOK, gin.H{"buses": buses})
 }
 
 // Handler to get conference info by ID
