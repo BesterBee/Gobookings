@@ -12,6 +12,17 @@
 .create-bus-btn:hover {
   background: #0d3c7b;
 }
+.back-btn {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background 0.2s;
+}
 
 .header {
   font-size: 2rem;

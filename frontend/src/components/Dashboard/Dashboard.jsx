@@ -22,7 +22,7 @@ function Dashboard() {
     }, []);
 
     return (
-        <div style={{ padding: '2rem', marginLeft: 200 }}>
+        <div >
             <h1 className="header">Welcome to the Ticket Booking App</h1>
             {dashboard ? (
                 <div className="dashboard-cards">
@@ -55,9 +55,9 @@ function Dashboard() {
                         <th>Name</th>
                         <th>Email</th>
                         <th>Seats</th>
-                        <th>Bus ID</th>
-                        <th>Date</th>
-                        <th>Time</th>
+                        <th>Bus Name</th>
+                        <th>Booking Date</th>
+                        <th>Booking Time</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,10 +69,9 @@ function Dashboard() {
                                 <td>{b.firstName} {b.lastName}</td>
                                 <td>{b.email}</td>
                                 <td>{b.seats}</td>
-                                <td>{b.busId}</td>
-                                <td>{b.date || '-'}</td>
-                                <td>{b.departureTime || '-'}</td>
-                            </tr>
+                                <td>{b.busname || '-'}</td>
+<td>{b.CreatedAt ? new Date(b.CreatedAt).toLocaleDateString() : '-'}</td>
+<td>{b.CreatedAt ? new Date(b.CreatedAt).toLocaleTimeString() : '-'}</td>                            </tr>
                         ))
                     )}
                 </tbody>
@@ -85,9 +84,9 @@ function Dashboard() {
                         <th>Name</th>
                         <th>Email</th>
                         <th>Tickets</th>
-                        <th>Conference ID</th>
-                        <th>Start Date</th>
-                        <th>End Date</th>
+                        <th>Conference Name</th>
+                        <th>Booking Date</th>
+                        <th>Booking Time</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -99,10 +98,10 @@ function Dashboard() {
                                 <td>{b.firstName} {b.lastName}</td>
                                 <td>{b.email}</td>
                                 <td>{b.tickets}</td>
-                                <td>{b.conferenceId}</td>
-                                <td>{b.startDate || '-'}</td>
-                                <td>{b.endDate || '-'}</td>
-                            </tr>
+                                <td>{b.conferenceName}</td>
+                                <td>{b.CreatedAt ? new Date(b.CreatedAt).toLocaleDateString() : '-'}</td>
+                                <td>{b.CreatedAt ? new Date(b.CreatedAt).toLocaleTimeString() : '-'}</td>
+                                </tr>
                         ))
                     )}
                 </tbody>

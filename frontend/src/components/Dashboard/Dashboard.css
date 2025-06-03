@@ -3,6 +3,7 @@
   gap: 2rem;
   flex-wrap: wrap;
   margin-bottom: 2rem;
+  justify-content: center;
 }
 .dashboard-card {
   background: #fff;

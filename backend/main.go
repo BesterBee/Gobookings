@@ -34,11 +34,14 @@ type Bus struct {
 
 type BusBooking struct {
 	gorm.Model
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Email     string `json:"email"`
-	Seats     int    `json:"seats"`
-	BusID     uint   `json:"busId"`
+	FirstName   string `json:"firstName"`
+	LastName    string `json:"lastName"`
+	Email       string `json:"email"`
+	Seats       int    `json:"seats"`
+	BusID       uint   `json:"busId"`
+	BusName     string `json:"busName"`
+	BookingDate string `json:"bookingDate"`
+	BookingTime string `json:"bookingTime"`
 }
 
 type Conference struct {
@@ -54,11 +57,14 @@ type Conference struct {
 
 type ConferenceBooking struct {
 	gorm.Model
-	FirstName    string `json:"firstName"`
-	LastName     string `json:"lastName"`
-	Email        string `json:"email"`
-	Tickets      int    `json:"tickets"`
-	ConferenceID uint   `json:"conferenceId"`
+	FirstName      string `json:"firstName"`
+	LastName       string `json:"lastName"`
+	Email          string `json:"email"`
+	Tickets        int    `json:"tickets"`
+	ConferenceID   uint   `json:"conferenceId"`
+	ConferenceName string `json:"conferenceName"`
+	BookingDate    string `json:"bookingDate"`
+	BookingTime    string `json:"bookingTime"`
 }
 
 func main() {
@@ -397,24 +403,56 @@ func bookBusTicketHandler(c *gin.Context) {
 	})
 }
 
-// Handler to get all bus bookings
+// Handler to get all bus bookings with bus name
 func getAllBusBookings(c *gin.Context) {
 	var bookings []BusBooking
 	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bus bookings"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+
+	var result []map[string]interface{}
+	for _, booking := range bookings {
+		var bus Bus
+		db.First(&bus, booking.BusID)
+		m := map[string]interface{}{
+			"ID":        booking.ID,
+			"firstName": booking.FirstName,
+			"lastName":  booking.LastName,
+			"email":     booking.Email,
+			"seats":     booking.Seats,
+			"busname":   bus.Name, // Add bus name
+			"CreatedAt": booking.CreatedAt,
+		}
+		result = append(result, m)
+	}
+	c.JSON(http.StatusOK, gin.H{"bookings": result})
 }
 
-// Handler to get all conference bookings
+// Handler to get all conference bookings with conference name
 func getAllConferenceBookings(c *gin.Context) {
 	var bookings []ConferenceBooking
 	if err := db.Find(&bookings).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conference bookings"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"bookings": bookings})
+
+	var result []map[string]interface{}
+	for _, booking := range bookings {
+		var conf Conference
+		db.First(&conf, booking.ConferenceID)
+		m := map[string]interface{}{
+			"ID":             booking.ID,
+			"firstName":      booking.FirstName,
+			"lastName":       booking.LastName,
+			"email":          booking.Email,
+			"tickets":        booking.Tickets,
+			"conferenceName": conf.Title, // Add conference name
+			"CreatedAt":      booking.CreatedAt,
+		}
+		result = append(result, m)
+	}
+	c.JSON(http.StatusOK, gin.H{"bookings": result})
 }
 
 // Function to send a ticket  asynchronously

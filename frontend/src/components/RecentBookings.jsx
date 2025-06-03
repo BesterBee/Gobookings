@@ -15,6 +15,8 @@ function RecentBookings() {
 
   return (
     <div>
+      <h1 className="header">Recent Bookings</h1>
+      
       <h2>Recent Bus Bookings</h2>
       <table border="1" cellPadding="8" style={{ width: "100%", marginBottom: "2rem" }}>
         <thead>

@@ -3,6 +3,7 @@ import axios from 'axios';
 import RecentBookings from '../RecentBookings';
 import ConferencePanel from './ConferencePanel';
 import CreateConferenceForm from './CreateConferenceForm';
+import BookingForm from '../BookingForm';
 
 const ConferenceBooking = () => {
   const [conferences, setConferences] = useState([]);
@@ -101,42 +102,13 @@ const ConferenceBooking = () => {
           <p className="remaining-tickets">
             Total Tickets: {conferenceInfo.totalTickets} | Remaining Tickets: {conferenceInfo.remaining}
           </p>
-          <form className="booking-form" onSubmit={handleSubmit}>
-            <input
-              name="firstName"
-              placeholder="First Name"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-            />
-            {errors.firstName && <div className="error">{errors.firstName}</div>}
-            <input
-              name="lastName"
-              placeholder="Last Name"
-              value={formData.lastName}
-              onChange={handleChange}
-              required
-            />
-            {errors.lastName && <div className="error">{errors.lastName}</div>}
-            <input
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
-            {errors.email && <div className="error">{errors.email}</div>}
-            <input
-              name="tickets"
-              type="number"
-              placeholder="Number of Tickets"
-              value={formData.tickets}
-              onChange={handleChange}
-              required
-            />
-            {errors.tickets && <div className="error">{errors.tickets}</div>}
-            <button className="form-button" type="submit">Book Now</button>
-          </form>
+         <BookingForm
+
+            formData={formData}
+            errors={errors}
+            handleChange={handleChange}
+            handleSubmit={handleSubmit}
+          />
           <h2 className="recent-bookings-header">Recent Bookings</h2>
           {conferenceBookings.length > 0 ? (
             <RecentBookings bookings={conferenceBookings.map(b => ({ ...b, seats: b.tickets }))} />

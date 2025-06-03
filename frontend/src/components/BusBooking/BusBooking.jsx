@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import BookingForm from './BookingForm';
+import BookingForm from '../BookingForm';
 import RecentBookings from '../RecentBookings';
 import BusPanel from './BusPanel';
 import CreateBusForm from './CreateBusForm';
 import './BusBooking.css'; 
+import {ToastContainer, toast} from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 const BusBooking = () => {
   const [buses, setBuses] = useState([]);
   const [selectedBus, setSelectedBus] = useState(null);
@@ -52,7 +55,7 @@ const BusBooking = () => {
     try {
       const payload = { ...formData, seats: Number(formData.seats), busId: selectedBus.ID };
       const response = await axios.post(`http://localhost:8085/api/bus/${selectedBus.ID}/book`, payload);
-      alert(response.data.message);
+      toast.success(response.data.message);
       setFormData({ firstName: '', lastName: '', email: '', seats: '', tickets: '' });
       setBusInfo(prev => ({ ...prev, remaining: response.data.remaining }));
       const bookingsRes = await axios.get(`http://localhost:8085/api/bus/${selectedBus.ID}/bookings`);
@@ -60,7 +63,7 @@ const BusBooking = () => {
     } catch (error) {
       if (error.response && error.response.data) {
         setErrors(error.response.data.details || {});
-        alert(error.response.data.error);
+        toast.error(error.response.data.error);
       } else {
         alert('An unexpected error occurred. Please try again.');
       }
@@ -74,6 +77,7 @@ const BusBooking = () => {
 
   return (
     <>
+      <ToastContainer />
       {!showCreateForm && (
         <button
           className="create-bus-btn"
@@ -95,7 +99,7 @@ const BusBooking = () => {
         <BusPanel buses={buses} selectedBus={selectedBus} setSelectedBus={setSelectedBus} />
       ) : (
         <>
-          <button onClick={() => setSelectedBus(null)} style={{ marginBottom: "1rem" }}>
+          <button className="back-btn" onClick={() => setSelectedBus(null)} style={{ marginBottom: "1rem" }}>
             ← Back to Buses
           </button>
           <h1 className="header">Book Seats for {busInfo.busName}</h1>
@@ -103,6 +107,7 @@ const BusBooking = () => {
             Total Seats: {busInfo.totalSeats} | Remaining Seats: {busInfo.remaining}
           </p>
           <BookingForm
+
             formData={formData}
             errors={errors}
             handleChange={handleChange}
