@@ -23,7 +23,7 @@ function Dashboard() {
 
     return (
         <div >
-            <h1 className="header">Welcome to the Ticket Booking App</h1>
+            <h1 className="header">Book Bus & Conference Tickets Here!</h1>
             {dashboard ? (
                 <div className="dashboard-cards">
                     <div className="">

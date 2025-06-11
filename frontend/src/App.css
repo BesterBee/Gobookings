@@ -166,20 +166,7 @@
   background: #0056b3;
 }
 
-.sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  min-width: 200px;
-  height: 100vh;
-  background: #1051a5;
-  padding: 2rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-  z-index: 100;
-}
+
 
 .app-main-content {
   flex: 1;

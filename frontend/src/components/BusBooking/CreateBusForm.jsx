@@ -47,6 +47,7 @@ function CreateBusForm({ onBusCreated, onCancel }) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+      
       if (!res.ok) throw new Error(data.error || "Failed to create bus");
       onBusCreated(data.bus);
       setForm({

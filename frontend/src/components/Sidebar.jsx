@@ -1,32 +1,39 @@
 import React from "react";
+import { NavLink } from "react-router-dom";
+import "./Sidebar.css";
 
-function Sidebar({ activeSection, setActiveSection }) {
+function Sidebar() {
   return (
     <div className="sidebar">
-      <button
-        className={activeSection === "dashboard" ? "active" : ""}
-        onClick={() => setActiveSection("dashboard")}
+      <NavLink 
+        to="/" 
+        className={({ isActive }) => 
+          "sidebar-link" + (isActive ? " active" : "")}
+        end
       >
         Dashboard
-      </button>
-      <button
-        className={activeSection === "bus" ? "active" : ""}
-        onClick={() => setActiveSection("bus")}
+      </NavLink>
+      <NavLink 
+        to="/bus" 
+        className={({ isActive }) => 
+          "sidebar-link" + (isActive ? " active" : "")}
       >
-        Bus Booking
-      </button>
-      <button
-        className={activeSection === "conference" ? "active" : ""}
-        onClick={() => setActiveSection("conference")}
+        Bus Bookings
+      </NavLink>
+      <NavLink 
+        to="/conference" 
+        className={({ isActive }) => 
+          "sidebar-link" + (isActive ? " active" : "")}
       >
-        Conference Booking
-      </button>
-      <button
-        className={activeSection === "recent" ? "active" : ""}
-        onClick={() => setActiveSection("recent")}
+        Conference Bookings
+      </NavLink>
+      <NavLink 
+        to="/recent" 
+        className={({ isActive }) => 
+          "sidebar-link" + (isActive ? " active" : "")}
       >
         Recent Bookings
-      </button>
+      </NavLink>
     </div>
   );
 }
