@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -22,47 +23,63 @@ var (
 
 type Bus struct {
 	gorm.Model
-	Name           string `json:"name"`
-	Origin         string `json:"origin"`
-	Destination    string `json:"destination"`
-	Date           string `json:"tripDate"`
-	DepartureTime  string `json:"departureTime"`
-	ArrivalTime    string `json:"arrivalTime"`
-	TotalSeats     int    `json:"totalSeats"`
-	RemainingSeats int    `json:"remainingSeats"`
+	Name           string `json:"name" validate:"required,min=3,max=50"`
+	Origin         string `json:"origin" validate:"required,min=3,max=50"`
+	Destination    string `json:"destination" validate:"required,min=3,max=50"`
+	Date           string `json:"tripDate" validate:"required,date"`
+	DepartureTime  string `json:"departureTime" validate:"required,time"`
+	ArrivalTime    string `json:"arrivalTime" validate:"required,time"`
+	TotalSeats     int    `json:"totalSeats" validate:"required,min=1"`
+	RemainingSeats int    `json:"remainingSeats" `
+}
+
+type BusSeat struct {
+	gorm.Model
+	BusID      uint   `json:"busId" validate:"required"`
+	SeatNumber int    `json:"seatNumber" validate:"required,min=1"`
+	SeatStatus string `json:"seatStatus" gorm:"default:available"`
+	BookingID  uint   `json:"bookingId"`
+}
+
+type BookingRequest struct {
+	FirstName     string `json:"firstName"`
+	LastName      string `json:"lastName"`
+	Email         string `json:"email"`
+	SelectedSeats []int  `json:"selectedSeats"`
 }
 
 type BusBooking struct {
 	gorm.Model
-	FirstName   string `json:"firstName"`
-	LastName    string `json:"lastName"`
-	Email       string `json:"email"`
-	Seats       int    `json:"seats"`
-	BusID       uint   `json:"busId"`
-	BusName     string `json:"busName"`
+	FirstName   string `json:"firstName" validate:"required,min=3,max=50"`
+	LastName    string `json:"lastName" validate:"required,min=3,max=50"`
+	Email       string `json:"email" validate:"required,email"`
+	SeatNumber  int    `json:"seatNumber" validate:"required,min=1"`
+	BusID       uint   `json:"busId" validate:"required"`
+	BusName     string `json:"busName" `
 	BookingDate string `json:"bookingDate"`
 	BookingTime string `json:"bookingTime"`
+	Status      string `json:"status" gorm:"default:confirmed"`
 }
 
 type Conference struct {
 	gorm.Model
-	Title            string `json:"title"`
-	Description      string `json:"description"`
-	StartDate        string `json:"startDate"`
-	EndDate          string `json:"endDate"`
-	Location         string `json:"location"`
-	TotalTickets     int    `json:"totalTickets"`
-	RemainingTickets int    `json:"remainingTickets"`
+	Title            string `json:"title" validate:"required,min=3,max=50"`
+	Description      string `json:"description" validate:"required,min=3,max=500"`
+	StartDate        string `json:"startDate" validate:"required,date"`
+	EndDate          string `json:"endDate" validate:"required,date"`
+	Location         string `json:"location" validate:"required,min=3,max=50"`
+	TotalTickets     int    `json:"totalTickets" validate:"required,min=1"`
+	RemainingTickets int    `json:"remainingTickets" `
 }
 
 type ConferenceBooking struct {
 	gorm.Model
-	FirstName      string `json:"firstName"`
-	LastName       string `json:"lastName"`
-	Email          string `json:"email"`
-	Tickets        int    `json:"tickets"`
-	ConferenceID   uint   `json:"conferenceId"`
-	ConferenceName string `json:"conferenceName"`
+	FirstName      string `json:"firstName" validate:"required,min=3,max=50"`
+	LastName       string `json:"lastName" validate:"required,min=3,max=50"`
+	Email          string `json:"email" validate:"required,email"`
+	Tickets        int    `json:"tickets" validate:"required,min=1"`
+	ConferenceID   uint   `json:"conferenceId" validate:"required"`
+	ConferenceName string `json:"conferenceName" `
 	BookingDate    string `json:"bookingDate"`
 	BookingTime    string `json:"bookingTime"`
 }
@@ -98,7 +115,7 @@ func initDB() {
 	fmt.Println("Connected to the database")
 
 	// Migrate the schema
-	err = db.AutoMigrate(&BusBooking{}, &Bus{}, &Conference{}, &ConferenceBooking{})
+	err = db.AutoMigrate(&BusBooking{}, &Bus{}, &BusSeat{}, &Conference{}, &ConferenceBooking{})
 	if err != nil {
 		log.Fatal("Failed to migrate the database:", err)
 	}
@@ -125,7 +142,22 @@ func setupInitialBus() {
 		if err := db.Create(&bus).Error; err != nil {
 			log.Fatal("Failed to create bus:", err)
 		}
-		fmt.Println("A new bus has been created")
+
+		// Create seats for this bus
+		var seats []BusSeat
+		for i := 1; i <= bus.TotalSeats; i++ {
+			seats = append(seats, BusSeat{
+				BusID:      bus.ID,
+				SeatNumber: i,
+				SeatStatus: "available",
+			})
+		}
+
+		if err := db.Create(&seats).Error; err != nil {
+			log.Fatal("Failed to create seats:", err)
+		}
+
+		fmt.Println("A new bus with seats has been created")
 	}
 }
 
@@ -137,6 +169,9 @@ func setupRoutes(r *gin.Engine) {
 	r.GET("/api/bus/:id", getBusInfoByID)
 	r.GET("/api/bus/:id/bookings", getBusBookings)
 	r.POST("/api/bus/:id/book", bookBusTicketHandler)
+	r.GET("/api/bus/:id/seats", getBusSeats)
+	r.GET("/api/bus/:id/seats/available", getAvailableSeats)
+	// r.GET("/api/bus/:id/seats/all", getAllSeats)
 
 	// Conference endpoints
 	r.GET("/api/conferences", getAllConferences)
@@ -269,15 +304,28 @@ func createBus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
-	if bus.Name == "" || bus.TotalSeats <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Name and TotalSeats are required"})
-		return
-	}
-	bus.RemainingSeats = bus.TotalSeats
+
+	// Create the bus
 	if err := db.Create(&bus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create bus"})
 		return
 	}
+
+	// Create seats for this bus
+	var seats []BusSeat
+	for i := 1; i <= bus.TotalSeats; i++ {
+		seats = append(seats, BusSeat{
+			BusID:      bus.ID,
+			SeatNumber: i,
+			SeatStatus: "available",
+		})
+	}
+
+	if err := db.Create(&seats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create seats"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"bus": bus})
 }
 
@@ -289,6 +337,41 @@ func getAllBuses(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"buses": buses})
+}
+
+// Handler to get bus seats
+
+// Handler function
+func getBusSeats(c *gin.Context) {
+	id := c.Param("id")
+
+	// Verify bus exists
+	var bus Bus
+	if err := db.First(&bus, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bus not found"})
+		return
+	}
+
+	// Get all seats for this bus
+	var seats []BusSeat
+	if err := db.Where("bus_id = ?", id).Find(&seats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch seats"})
+		return
+	}
+
+	// Format response
+	var seatList []map[string]interface{}
+	for _, seat := range seats {
+		seatList = append(seatList, map[string]interface{}{
+			"seatNumber": seat.SeatNumber,
+			"status":     seat.SeatStatus,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"bus":   bus,
+		"seats": seatList,
+	})
 }
 
 // Handler to get conference info by ID
@@ -341,31 +424,39 @@ func getBusBookings(c *gin.Context) {
 
 // Handler to book a bus ticket
 func bookBusTicketHandler(c *gin.Context) {
-	var booking BusBooking
-	if err := c.ShouldBindJSON(&booking); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+
+	var bookingRequest BookingRequest
+
+	// Use ShouldBindJSON to properly parse the request body
+	if err := c.ShouldBindJSON(&bookingRequest); err != nil {
+		log.Printf("Error binding JSON: %v", err)
+		log.Printf("Request body: %v", c.Request.Body)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	if !ValidateUserInput(booking.FirstName, booking.LastName, booking.Email, booking.Seats) {
+	log.Printf("Booking request received: %+v", bookingRequest)
+
+	if len(bookingRequest.SelectedSeats) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No seat selected"})
+		return
+	}
+
+	busIDParam := c.Param("id")
+	var busID uint
+	if _, err := fmt.Sscanf(busIDParam, "%d", &busID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid bus ID in URL"})
+		return
+	}
+
+	if !ValidateUserInput(bookingRequest.FirstName, bookingRequest.LastName, bookingRequest.Email, 1) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
-	// Find the bus by ID from the booking
-	var bus Bus
-	if err := db.First(&bus, booking.BusID).Error; err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Bus not found"})
-		return
-	}
-
-	// Check if there are enough seats available
-	if booking.Seats > bus.RemainingSeats {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough seats left", "remaining": bus.RemainingSeats})
-		return
-	}
-
-	// start a transaction
 	tx := db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -373,34 +464,108 @@ func bookBusTicketHandler(c *gin.Context) {
 		}
 	}()
 
-	// Update the bus remaining seats
-	if err := tx.Model(&bus).Where("id = ?", bus.ID).Update("remaining_seats",
-		gorm.Expr("remaining_seats - ?", booking.Seats)).Error; err != nil {
+	// Get bus info once
+	var bus Bus
+	if err := tx.First(&bus, busID).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Bus not found"})
+		return
+	}
+
+	if len(bookingRequest.SelectedSeats) > bus.RemainingSeats {
+		tx.Rollback()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Not enough seats available"})
+		return
+	}
+
+	// Create a slice to store all created bookings
+	var bookings []BusBooking
+
+	// Loop through selected seats and process each one
+	for _, seatNum := range bookingRequest.SelectedSeats {
+		var seat BusSeat
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").
+			Where("bus_id = ? AND seat_number = ?", busID, seatNum).
+			First(&seat).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Seat %d not found", seatNum)})
+			return
+		}
+
+		if seat.SeatStatus != "available" {
+			tx.Rollback()
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Seat %d already booked", seatNum)})
+			return
+		}
+
+		booking := BusBooking{
+			FirstName:   bookingRequest.FirstName,
+			LastName:    bookingRequest.LastName,
+			Email:       bookingRequest.Email,
+			SeatNumber:  seatNum,
+			BusID:       busID,
+			BusName:     bus.Name,
+			BookingDate: time.Now().Format("2006-01-02"),
+			BookingTime: time.Now().Format("15:04:05"),
+		}
+
+		if err := tx.Create(&booking).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
+			return
+		}
+
+		if err := tx.Model(&seat).Updates(map[string]interface{}{
+			"seat_status": "booked",
+			"booking_id":  booking.ID,
+		}).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update seat status"})
+			return
+		}
+
+		bookings = append(bookings, booking)
+	}
+
+	// Update bus remaining seats in bulk
+	if err := tx.Model(&bus).Update("remaining_seats", gorm.Expr("remaining_seats - ?", len(bookingRequest.SelectedSeats))).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update bus seats"})
 		return
 	}
-	// Create the booking
-	if err := tx.Create(&booking).Error; err != nil {
-		tx.Rollback()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
-		return
-	}
 
-	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
 		return
 	}
 
-	// Async send ticket
+	// Send tickets asynchronously
 	waitgroup.Add(1)
-	go sendTicket(booking.Seats, booking.FirstName, booking.LastName, booking.Email)
+	go func() {
+		defer waitgroup.Done()
+		for _, booking := range bookings {
+			sendTicket(1, booking.FirstName, booking.LastName, booking.Email)
+		}
+	}()
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":   "Booking successful!",
-		"remaining": bus.RemainingSeats - booking.Seats,
+		"message":     "Seats booked successfully!",
+		"remaining":   bus.RemainingSeats - len(bookingRequest.SelectedSeats),
+		"seatNumbers": bookingRequest.SelectedSeats,
 	})
+}
+
+// Handler to get available seats for a bus
+func getAvailableSeats(c *gin.Context) {
+	busID := c.Param("id")
+	var seats []BusSeat
+
+	if err := db.Where("bus_id = ? AND seat_status = ?", busID, "available").Find(&seats).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch available seats"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"available_seats": seats})
 }
 
 // Handler to get all bus bookings with bus name
@@ -420,9 +585,10 @@ func getAllBusBookings(c *gin.Context) {
 			"firstName": booking.FirstName,
 			"lastName":  booking.LastName,
 			"email":     booking.Email,
-			"seats":     booking.Seats,
+			"seats":     booking.SeatNumber,
 			"busname":   bus.Name, // Add bus name
 			"CreatedAt": booking.CreatedAt,
+			"Status":    booking.Status,
 		}
 		result = append(result, m)
 	}
@@ -456,11 +622,12 @@ func getAllConferenceBookings(c *gin.Context) {
 }
 
 // Function to send a ticket  asynchronously
-func sendTicket(tickets int, firstName, lastName, email string) {
+func sendTicket(count int, firstName, lastName, email string) {
 	defer waitgroup.Done()
 
 	time.Sleep(10 * time.Second)
-	ticket := fmt.Sprintf("%d tickets for %s %s", tickets, firstName, lastName)
+	ticket := fmt.Sprintf("%d tickets for %s %s", count, firstName, lastName)
+	log.Printf("Sending %d ticket(s) to %s %s at %s\n", count, firstName, lastName, email)
 
 	log.Printf("Sending ticket to %s: %s\n", email, ticket)
 }
@@ -477,7 +644,8 @@ func ValidateUserInput(firstName, lastName, email string, tickets int) bool {
 // Handler to get the dashboard summary
 func getDashboardSummary(c *gin.Context) {
 	var busCount, conferenceCount, busBookingCount, conferenceBookingCount int64
-	var totalBusSeats, totalConferenceTickets, totalBusSeatsBooked, totalConferenceTicketsBooked int64
+	var totalBusSeats, totalConferenceTickets sql.NullInt64
+	var totalBusSeatsBooked, totalConferenceTicketsBooked int64
 
 	db.Model(&Bus{}).Count(&busCount)
 	db.Model(&Conference{}).Count(&conferenceCount)
@@ -485,7 +653,7 @@ func getDashboardSummary(c *gin.Context) {
 	db.Model(&ConferenceBooking{}).Count(&conferenceBookingCount)
 	db.Model(&Bus{}).Select("SUM(total_seats)").Scan(&totalBusSeats)
 	db.Model(&Conference{}).Select("SUM(total_tickets)").Scan(&totalConferenceTickets)
-	db.Model(&BusBooking{}).Select("SUM(seats)").Scan(&totalBusSeatsBooked)
+	db.Model(&BusBooking{}).Select("SUM(tickets)").Scan(&totalBusSeatsBooked)
 	db.Model(&ConferenceBooking{}).Select("SUM(tickets)").Scan(&totalConferenceTicketsBooked)
 
 	c.JSON(200, gin.H{

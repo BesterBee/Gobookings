@@ -109,7 +109,6 @@ const ConferenceBooking = () => {
             handleChange={handleChange}
             handleSubmit={handleSubmit}
           />
-          <h2 className="recent-bookings-header">Recent Bookings</h2>
           {conferenceBookings.length > 0 ? (
             <RecentBookings bookings={conferenceBookings.map(b => ({ ...b, seats: b.tickets }))} />
           ) : (

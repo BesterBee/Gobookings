@@ -23,7 +23,7 @@ function RecentBookings() {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Seats</th>
+            <th>Seat</th>
             <th>Bus ID</th>
             <th>Date</th>
             <th>Time</th>
@@ -37,7 +37,7 @@ function RecentBookings() {
               <tr key={b.ID}>
                 <td>{b.firstName} {b.lastName}</td>
                 <td>{b.email}</td>
-                <td>{b.seats}</td>
+                <td>{b.seatNumber}</td>
                 <td>{b.busId}</td>
                 <td>{b.date || '-'}</td>
                 <td>{b.departureTime || '-'}</td>

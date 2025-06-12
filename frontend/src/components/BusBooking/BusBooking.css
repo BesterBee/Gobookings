@@ -63,3 +63,28 @@ button[style*="Back to Buses"]:hover {
   color: #1051a5;
   
 }
+.seat-map {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.seat-row {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+}
+
+.seat {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.seat.available { background: #4CAF50; }
+.seat.selected { background: #FFC107; }
+.seat.booked { background: #F44336; cursor: not-allowed; }
