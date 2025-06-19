@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
 function RecentBookings() {
+  const [busBookings, setBusData] = useState([]);
 
- const [busData, setBusData] = useState([]);
  const [conferenceData, setConferenceData] = useState([]);
   useEffect(() => {
     fetch('http://localhost:8085/api/bus_bookings')
@@ -23,27 +23,25 @@ function RecentBookings() {
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Seat</th>
+            <th>Seat No.</th>
             <th>Bus ID</th>
-            <th>Date</th>
-            <th>Time</th>
+            <th>Booking Date</th>
           </tr>
         </thead>
         <tbody>
-          {busData.length === 0 ? (
-            <tr><td colSpan="6">No bus bookings found.</td></tr>
-          ) : (
-            busData.map(b => (
-              <tr key={b.ID}>
+      {busBookings.length === 0 ? (
+        <tr><td colSpan="6">No bus bookings found.</td></tr>
+    ) : (
+        busBookings.map(b => (
+            <tr key={b.ID}>
                 <td>{b.firstName} {b.lastName}</td>
                 <td>{b.email}</td>
-                <td>{b.seatNumber}</td>
-                <td>{b.busId}</td>
-                <td>{b.date || '-'}</td>
-                <td>{b.departureTime || '-'}</td>
-              </tr>
-            ))
-          )}
+                <td>{b.seats}</td>
+                <td>{b.busname || '-'}</td>
+                <td>{b.CreatedAt ? new Date(b.CreatedAt).toLocaleDateString() : '-'} {b.CreatedAt ? new Date(b.CreatedAt).toLocaleTimeString() : '-'}</td>
+            </tr>
+        ))
+    )}
         </tbody>
       </table>
 

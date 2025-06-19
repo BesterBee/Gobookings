@@ -45,8 +45,8 @@ function Dashboard() {
             </p>
             <p>
               Seats Booked:{" "}
-              {dashboard.totalBusSeatsBooked?.Valid
-                ? dashboard.totalBusSeatsBooked.Int64
+              {dashboard.totalbusBookingCount?.Valid
+                ? dashboard.totalbusBookingCount.Int64
                 : 0}
             </p>
           </div>
