@@ -5,6 +5,38 @@
   margin-bottom: 2rem;
   justify-content: center;
 }
+
+/* Add this for mobile responsiveness */
+@media (max-width: 900px) {
+  .dashboard-cards {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  .dashboard-card {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .dashboard-table {
+    font-size: 0.95em;
+    overflow-x: auto;
+    display: block;
+    width: 100%;
+  }
+}
+
+/* Make tables scroll horizontally if needed */
+.dashboard-table {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  width: 100%;
+  min-width: 350px;
+  display: block;
+}
 .dashboard-card {
   background: #fff;
   border-radius: 8px;
@@ -31,13 +63,6 @@
   font-size: 1.5rem;
   vertical-align: middle;
   color: #ff5638;
-}
-.dashboard-table {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  margin-bottom: 2rem;
-  overflow: hidden;
 }
 .dashboard-table th, .dashboard-table td {
   padding: 0.75rem 1rem;

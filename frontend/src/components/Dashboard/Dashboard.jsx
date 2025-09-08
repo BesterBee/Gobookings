@@ -45,9 +45,7 @@ function Dashboard() {
             </p>
             <p>
               Seats Booked:{" "}
-              {dashboard.totalbusBookingCount?.Valid
-                ? dashboard.totalbusBookingCount.Int64
-                : 0}
+              {dashboard.busBookingCount}
             </p>
           </div>
           <div className="">
@@ -75,9 +73,7 @@ function Dashboard() {
             <h3>Bookings</h3>
             <p>
               Bus Bookings:{" "}
-              {dashboard.busBookingCount?.Valid
-                ? dashboard.busBookingCount.Int64
-                : 0}
+              {dashboard.busBookingCount}
             </p>
             <p>
               Conference Bookings:{" "}

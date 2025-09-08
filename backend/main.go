@@ -6,14 +6,25 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+// Load environment variables from .env file
+func init() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found or error loading .env")
+	}
+}
 
 var (
 	waitgroup sync.WaitGroup
@@ -84,6 +95,18 @@ type ConferenceBooking struct {
 	BookingTime    string `json:"bookingTime"`
 }
 
+type BusTicket struct {
+	ID           string `gorm:"primaryKey" json:"id"` // UUID
+	BusBookingID uint   `json:"busBookingId"`
+	BusID        uint   `json:"busId"`
+	SeatNumber   int    `json:"seatNumber"`
+	FirstName    string `json:"firstName"`
+	LastName     string `json:"lastName"`
+	Email        string `json:"email"`
+	Used         bool   `json:"used"`
+	CreatedAt    time.Time
+}
+
 func main() {
 
 	initDB()
@@ -105,9 +128,15 @@ func main() {
 
 // function to initialize the database connection MySQL database
 func initDB() {
+	user := os.Getenv("DB_USER")
+	pass := os.Getenv("DB_PASS")
+	host := os.Getenv("DB_HOST")
+	port := os.Getenv("DB_PORT")
+	name := os.Getenv("DB_NAME")
 	var err error
 
-	db, err = gorm.Open(mysql.Open("ticket_user:password123@tcp(localhost:3306)/tickets_db?parseTime=true"), &gorm.Config{})
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", user, pass, host, port, name)
+	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to the database:", err)
 	}
@@ -115,7 +144,7 @@ func initDB() {
 	fmt.Println("Connected to the database")
 
 	// Migrate the schema
-	err = db.AutoMigrate(&BusBooking{}, &Bus{}, &BusSeat{}, &Conference{}, &ConferenceBooking{})
+	err = db.AutoMigrate(&BusBooking{}, &Bus{}, &BusSeat{}, &Conference{}, &ConferenceBooking{}, &BusTicket{})
 	if err != nil {
 		log.Fatal("Failed to migrate the database:", err)
 	}
@@ -480,6 +509,7 @@ func bookBusTicketHandler(c *gin.Context) {
 
 	// Create a slice to store all created bookings
 	var bookings []BusBooking
+	var ticketIDs []string
 
 	// Loop through selected seats and process each one
 	for _, seatNum := range bookingRequest.SelectedSeats {
@@ -524,7 +554,24 @@ func bookBusTicketHandler(c *gin.Context) {
 			return
 		}
 
-		bookings = append(bookings, booking)
+		// Create a ticket for the booking
+		ticket := BusTicket{
+			ID:           uuid.New().String(),
+			BusBookingID: booking.ID,
+			BusID:        busID,
+			SeatNumber:   seatNum,
+			FirstName:    bookingRequest.FirstName,
+			LastName:     bookingRequest.LastName,
+			Email:        bookingRequest.Email,
+			Used:         false,
+			CreatedAt:    time.Now(),
+		}
+		if err := tx.Create(&ticket).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create ticket"})
+			return
+		}
+		ticketIDs = append(ticketIDs, ticket.ID)
 	}
 
 	// Update bus remaining seats in bulk
@@ -552,6 +599,7 @@ func bookBusTicketHandler(c *gin.Context) {
 		"message":     "Seats booked successfully!",
 		"remaining":   bus.RemainingSeats - len(bookingRequest.SelectedSeats),
 		"seatNumbers": bookingRequest.SelectedSeats,
+		"ticketIDs":   ticketIDs,
 	})
 }
 

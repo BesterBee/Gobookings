@@ -171,8 +171,8 @@
 .app-main-content {
   flex: 1;
   padding: 2rem;
-  margin-left: 200px; /* match sidebar width if fixed */
-  min-width: 0;
+  margin-left: 300px; 
+  min-width: 800px;
   box-sizing: border-box;
   width: 100%;
   max-width: 100vw;
